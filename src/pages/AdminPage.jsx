@@ -1,184 +1,180 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { Lock, Download, RefreshCw, Search, Inbox } from "lucide-react";
-import { fetchAllSignatures } from "../lib/signatureApi.js";
-
-// Simple client-side gate. For real protection, enforce access via Supabase
-// Row Level Security policies on the table/bucket rather than relying on this alone.
-const ADMIN_PASSWORD = "izerjago";
-const SESSION_KEY = "sig_admin_authed";
+import { useState, useEffect } from "react";
+import { Download, ShieldCheck, LogOut, Sun, Moon, Database, RefreshCw } from "lucide-react";
+import { supabase } from "../lib/supabaseClient";
 
 export default function AdminPage() {
-  const [authed, setAuthed] = useState(() => sessionStorage.getItem(SESSION_KEY) === "1");
-
-  return authed ? <Dashboard /> : <PasswordGate onSuccess={() => setAuthed(true)} />;
-}
-
-function PasswordGate({ onSuccess }) {
-  const [value, setValue] = useState("");
-  const [shake, setShake] = useState(false);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (value === ADMIN_PASSWORD) {
-      sessionStorage.setItem(SESSION_KEY, "1");
-      onSuccess();
-    } else {
-      setShake(true);
-      setTimeout(() => setShake(false), 400);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center px-5">
-      <form onSubmit={handleSubmit} className={`w-full max-w-xs flex flex-col items-center gap-5 transition-transform ${shake ? "animate-[shake_0.4s]" : ""}`}>
-        <div className="w-10 h-10 rounded-full bg-slate flex items-center justify-center">
-          <Lock size={16} strokeWidth={1.75} className="text-paper" />
-        </div>
-        <h1 className="font-display italic text-2xl text-ink">Akses Editor</h1>
-        <input
-          type="password"
-          autoFocus
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Kata sandi"
-          className="w-full text-center bg-transparent border-b border-hairline pb-2 text-[15px]
-                     text-ink placeholder-muted/50 outline-none focus:border-moss transition-colors duration-200"
-        />
-        <button type="submit" className="text-[13px] font-medium text-moss hover:text-moss-dark transition-colors border-b border-moss/40 hover:border-moss-dark pb-0.5">
-          Masuk
-        </button>
-      </form>
-      <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-6px); }
-          75% { transform: translateX(6px); }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function Dashboard() {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState("");
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [query, setQuery] = useState("");
 
-  const load = useCallback(async () => {
+  // FIX: Default tema disamakan dengan halaman utama (Light Mode / Putih Premium)
+  const [darkMode, setDarkMode] = useState(false);
+
+  const fetchLogs = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchAllSignatures();
-      setRows(data);
-    } catch (err) {
-      setError(err.message);
+      const { data, error: err } = await supabase.from("signature_logs").select("*").order("created_at", { ascending: false });
+
+      if (err) throw err;
+      setLogs(data || []);
+    } catch (e) {
+      setError(e.message || "Gagal mengambil log tanda tangan.");
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => r.nama?.toLowerCase().includes(q) || r.kelas?.toLowerCase().includes(q));
-  }, [rows, query]);
-
-  return (
-    <div className="min-h-screen px-5 sm:px-10 py-10">
-      <header className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-        <div>
-          <span className="text-[11px] font-mono tracking-[0.15em] uppercase text-muted">Editor</span>
-          <h1 className="font-display italic text-4xl text-ink mt-1">Daftar Tanda Tangan</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Cari nama / kelas…"
-              className="pl-8 pr-3 py-2 text-[13px] bg-white border border-hairline rounded-full outline-none focus:border-moss transition-colors w-48"
-            />
-          </div>
-          <button onClick={load} className="flex items-center gap-1.5 text-[13px] text-muted hover:text-ink transition-colors px-3 py-2 rounded-full border border-hairline hover:border-ink/30">
-            <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
-            Muat ulang
-          </button>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto">
-        {error && <p className="text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-6">{error}</p>}
-
-        {!loading && filtered.length === 0 && !error && (
-          <div className="flex flex-col items-center justify-center py-24 text-muted">
-            <Inbox size={28} strokeWidth={1.5} />
-            <p className="mt-3 text-[14px]">Belum ada tanda tangan masuk.</p>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map((row) => (
-            <SubmissionCard key={row.id} row={row} />
-          ))}
-          {loading && Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
-        </div>
-      </main>
-    </div>
-  );
-}
-
-function SubmissionCard({ row }) {
-  const date = row.created_at ? new Date(row.created_at) : null;
-  const formattedDate = date ? date.toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
-
-  const handleDownload = async () => {
-    if (!row.video_url) return;
-    const res = await fetch(row.video_url);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${row.kelas}_${row.nama}_${row.id}.webm`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
-  return (
-    <div className="bg-white border border-hairline rounded-xl overflow-hidden shadow-soft hover:shadow-paper transition-shadow duration-200">
-      <div className="bg-ink aspect-video">{row.video_url && <video src={row.video_url} controls preload="metadata" className="w-full h-full object-contain bg-ink" />}</div>
-      <div className="p-4 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[14px] font-medium text-ink truncate">{row.nama}</p>
-          <p className="text-[12px] text-muted truncate">
-            {row.kelas} · <span className="font-mono">{formattedDate}</span>
-          </p>
-        </div>
-        <button
-          onClick={handleDownload}
-          title="Unduh video"
-          className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-paper border border-hairline text-ink hover:bg-ink hover:text-paper hover:border-ink transition-colors duration-150"
-        >
-          <Download size={15} strokeWidth={1.75} />
-        </button>
-      </div>
-    </div>
-  );
-}
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (password === "izerjago") {
+      setIsAuthenticated(true);
+      fetchLogs();
+    } else {
+      alert("Token Akses Salah.");
+    }
+  };
 
-function SkeletonCard() {
-  return (
-    <div className="bg-white border border-hairline rounded-xl overflow-hidden animate-pulse">
-      <div className="bg-hairline aspect-video" />
-      <div className="p-4 space-y-2">
-        <div className="h-3 w-2/3 bg-hairline rounded" />
-        <div className="h-2.5 w-1/2 bg-hairline rounded" />
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setPassword("");
+    setLogs([]);
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div
+        className={`min-h-screen w-full flex flex-col items-center justify-center px-6 transition-colors duration-500 select-none
+        ${darkMode ? "bg-[#000000]" : "bg-[#F5F5F7]"}`}
+      >
+        <form
+          onSubmit={handleLogin}
+          className={`w-full max-w-[360px] border rounded-[28px] p-6 backdrop-blur-2xl transition-all duration-500 shadow-sm
+          ${darkMode ? "bg-[#161617]/75 border-zinc-800/80 shadow-[0_20px_50px_rgba(0,0,0,0.4)]" : "bg-white/75 border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.02)]"}`}
+        >
+          <header className="text-center mb-6">
+            <span className={`text-[9px] font-mono font-bold tracking-[0.25em] uppercase ${darkMode ? "text-zinc-500" : "text-gray-400"}`}>IZER'S CONTROL CENTER</span>
+            <h2 className={`text-xl font-black tracking-tight mt-1 ${darkMode ? "text-[#F5F5F7]" : "text-[#1D1D1F]"}`}>Admin Authentication</h2>
+          </header>
+
+          <input
+            type="password"
+            placeholder="ACCESS TOKEN"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={`w-full text-center text-[12px] font-mono tracking-widest rounded-xl py-3.5 border px-4 mb-4 focus:outline-none transition-all
+              ${darkMode ? "bg-[#000000] border-zinc-800 text-white focus:border-zinc-600" : "bg-[#F5F5F7] border-gray-200 text-[#1D1D1F] focus:border-gray-400"}`}
+          />
+
+          <button
+            type="submit"
+            className={`w-full flex items-center justify-center gap-2 rounded-xl py-3 text-[13px] font-bold tracking-wide transition-all active:scale-[0.98] mx-auto text-center
+              ${darkMode ? "bg-[#F5F5F7] text-[#1D1D1F] hover:bg-white" : "bg-[#1D1D1F] text-white hover:bg-zinc-800"}`}
+          >
+            <ShieldCheck size={14} strokeWidth={2.5} /> Log In
+          </button>
+        </form>
       </div>
+    );
+  }
+
+  return (
+    <div
+      className={`min-h-screen transition-colors duration-500 pb-16 w-full
+      ${darkMode ? "bg-[#000000] text-[#F5F5F7]" : "bg-[#F5F5F7] text-[#1D1D1F]"}`}
+    >
+      {/* Dynamic Navbar */}
+      <nav
+        className={`sticky top-0 z-40 border-b backdrop-blur-xl transition-all duration-300
+        ${darkMode ? "bg-[#000000]/75 border-zinc-800/80" : "bg-[#F5F5F7]/75 border-gray-200"}`}
+      >
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Database size={13} className={darkMode ? "text-zinc-500" : "text-gray-400"} />
+            <h1 className="font-mono text-[10px] font-black tracking-[0.2em] uppercase">IZER'S DATABASE PANEL</h1>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* BUTTON REFRESH DATABASE: Premium pill button dengan feedback putaran loading */}
+            <button
+              onClick={fetchLogs}
+              disabled={loading}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-mono tracking-wider font-bold transition-all active:scale-95 disabled:opacity-50
+                ${darkMode ? "bg-[#161617] border-zinc-800 text-zinc-300 hover:bg-zinc-800" : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"}`}
+            >
+              <RefreshCw size={11} strokeWidth={2.5} className={loading ? "animate-spin" : ""} />
+              REFRESH
+            </button>
+
+            {/* Theme Toggle Button */}
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className={`p-2 rounded-full border transition-all active:scale-95
+                ${darkMode ? "bg-[#161617] border-zinc-800 text-amber-400" : "bg-white border-gray-200 text-indigo-600"}`}
+            >
+              {darkMode ? <Sun size={13} fill="currentColor" /> : <Moon size={13} fill="currentColor" />}
+            </button>
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-mono tracking-wider font-bold transition-all active:scale-95
+                ${darkMode ? "bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20" : "bg-red-50 border-red-100 text-red-600 hover:bg-red-100"}`}
+            >
+              <LogOut size={11} strokeWidth={2.5} /> LOGOUT
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Grid Dashboard */}
+      <main className="max-w-6xl mx-auto px-6 mt-10">
+        {loading && <p className="text-center font-mono text-[10px] text-gray-400 animate-pulse mb-6">Mengambil log data server…</p>}
+        {error && <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-center max-w-md mx-auto text-red-400 text-sm mb-6">{error}</div>}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 w-full">
+          {logs.map((log) => (
+            <div
+              key={log.id}
+              className={`border rounded-[24px] p-4 transition-all duration-300 backdrop-blur-2xl shadow-sm
+                ${darkMode ? "bg-[#161617]/75 border-zinc-800/80 hover:border-zinc-700" : "bg-white/75 border-white/60 hover:border-gray-300"}`}
+            >
+              {/* Aspect Ratio Balanced Media Holder */}
+              <div
+                className={`overflow-hidden rounded-[14px] border aspect-[16/9] mb-4 bg-black relative
+                ${darkMode ? "border-zinc-800" : "border-gray-100"}`}
+              >
+                {log.video_url ? (
+                  <video src={log.video_url} controls preload="metadata" className="w-full h-full object-contain" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center font-mono text-[9px] text-zinc-600">NO MEDIA</div>
+                )}
+              </div>
+
+              {/* Information Row */}
+              <div className="flex items-end justify-between px-1 w-full">
+                <div className="flex-1 min-w-0 pr-2">
+                  <h3 className={`text-[15px] font-black tracking-tight leading-tight truncate ${darkMode ? "text-white" : "text-[#1D1D1F]"}`}>{log.nama}</h3>
+                  <p className={`text-[11px] font-bold font-mono mt-1 ${darkMode ? "text-[#86868B]" : "text-[#6E6E73]"}`}>{log.kelas}</p>
+                </div>
+
+                {log.video_url && (
+                  <a
+                    href={log.video_url}
+                    download={`${log.kelas}_${log.nama}.webm`}
+                    className={`p-2.5 rounded-xl border transition-all active:scale-95 shrink-0
+                      ${darkMode ? "bg-[#000000] border-zinc-700 text-[#F5F5F7] hover:bg-zinc-800" : "bg-[#F5F5F7] border-gray-300 text-[#1D1D1F] hover:bg-white"}`}
+                  >
+                    <Download size={13} strokeWidth={2.5} />
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </main>
     </div>
   );
 }

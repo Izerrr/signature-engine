@@ -29,7 +29,9 @@ export default function AdminPage() {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (password === "izerjago") {
+    const secureToken = import.meta.env.VITE_ADMIN_TOKEN;
+
+    if (password === secureToken) {
       setIsAuthenticated(true);
       fetchLogs();
     } else {

@@ -17,16 +17,16 @@ export default function SignaturePage() {
   const [localVideoUrl, setLocalVideoUrl] = useState(null);
   const [pageDarkMode, setPageDarkMode] = useState(false);
 
-  // Inisialisasi engine canvas asli bawaan lu
+  // Inisialisasi engine canvas bawaan asli lu
   const sig = useSignatureCanvas();
 
   const recordTimerRef = useRef(null);
   const recordStartRef = useRef(0);
 
-  // Validasi: Form wajib terisi DAN user harus coret TTD dulu baru tombol aktif
+  // Validasi tombol: Form wajib isi DAN user harus coret TTD dulu baru tombol aktif
   const canSubmit = nama.trim().length > 0 && kelas.trim().length > 0 && sig.hasInk && phase === "form";
 
-  // LOGIKA PAKEM AWAL: Hanya update state progress bar UI (Steril tanpa menyentuh canvas)
+  // MURNI LOGIKA ASLI LU: Hanya update state progress bar UI tanpa otak-atik canvas
   const tickProgress = useCallback(() => {
     const elapsed = Date.now() - recordStartRef.current;
     setRecordProgress(Math.min(1, elapsed / MAX_RECORD_MS));
@@ -41,14 +41,12 @@ export default function SignaturePage() {
     };
   }, [localVideoUrl]);
 
+  // Switcher tema murni di level UI saja sesuai request lu
   const handleThemeToggle = useCallback(() => {
     setPageDarkMode((prev) => !prev);
-    if (sig && typeof sig.toggleBgMode === "function") {
-      sig.toggleBgMode();
-    }
-  }, [sig]);
+  }, []);
 
-  // LOGIKA PAKEM ORIGINAL 100%: Menyerahkan proses playback & rekam sepenuhnya ke library asli lu
+  // 100% SAMAKAN LOGIKA PAKEM SOURCE CODE AWAL LU
   const handleSubmit = useCallback(async () => {
     if (!canSubmit) return;
     setError(null);
@@ -57,14 +55,17 @@ export default function SignaturePage() {
     recordTimerRef.current = requestAnimationFrame(tickProgress);
 
     try {
-      const targetCanvas = sig.canvasRef?.current || sig.ref?.current;
+      const targetCanvas = sig.canvasRef?.current;
+
+      // Ambil data array koordinat coretan TTD dari hook bawaan lu
+      const strokesData = sig.getStrokes();
 
       if (!targetCanvas) {
         throw new Error("Canvas utama tidak ditemukan.");
       }
 
-      // Memanggil fungsi asli lu dengan objek konfigurasi default awal tanpa force warna
-      const blob = await recordCanvasAsVideo(targetCanvas, {
+      // FIX MUTLAK: Sekarang argumen kedua sudah diisi dengan data strokes asli lu!
+      const blob = await recordCanvasAsVideo(targetCanvas, strokesData, {
         fps: 24,
         maxDurationMs: MAX_RECORD_MS,
         bitsPerSecond: 400000,
@@ -154,15 +155,15 @@ export default function SignaturePage() {
                 <FloatingInput label="Kelas" name="kelas" value={kelas} onChange={setKelas} dark={pageDarkMode} />
               </div>
 
-              {/* Canvas Area Utama */}
+              {/* Latar belakang dinamis diisolasi pada level pembungkus UI ini saja */}
               <div
-                className={`w-full transition-all duration-300 mb-4 pb-7
-                ${pageDarkMode ? "[&_canvas]:border-zinc-800 [&_canvas]:bg-[#0A0A0C]" : ""}`}
+                className={`w-full mb-4 pb-7 rounded-2xl border transition-all duration-300
+                ${pageDarkMode ? "bg-[#0A0A0C] border-zinc-800/80" : "bg-white border-gray-100"}`}
               >
                 <SignatureCanvas sig={sig} />
               </div>
 
-              {/* Submit / Progress Perekaman Button */}
+              {/* Submit / Progress Button */}
               <div className="w-full flex justify-center mt-2">
                 <button
                   type="button"
@@ -223,7 +224,7 @@ export default function SignaturePage() {
                   ${pageDarkMode ? "bg-[#161617] text-white border-zinc-700 hover:bg-zinc-800" : "bg-white text-[#1D1D1F] border-gray-300 hover:bg-gray-50"}`}
               >
                 <Download size={13} strokeWidth={2.5} />
-                Unduh Video Asli (.webm)
+                Unduh Video (.webm)
               </a>
             </div>
 
@@ -241,7 +242,7 @@ export default function SignaturePage() {
 
       <footer className="mt-8 text-center w-full flex justify-center">
         <p className="text-[9px] font-mono tracking-[0.3em] uppercase font-black transition-all duration-300" style={{ color: pageDarkMode ? "#FFFFFF" : "rgba(29, 29, 31, 0.4)" }}>
-          Designed by Izer
+          Crafted by IZERWORKS ©2026
         </p>
       </footer>
 

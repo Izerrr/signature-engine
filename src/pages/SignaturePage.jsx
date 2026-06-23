@@ -17,16 +17,13 @@ export default function SignaturePage() {
   const [localVideoUrl, setLocalVideoUrl] = useState(null);
   const [pageDarkMode, setPageDarkMode] = useState(false);
 
-  // Inisialisasi engine canvas bawaan asli lu
   const sig = useSignatureCanvas();
 
   const recordTimerRef = useRef(null);
   const recordStartRef = useRef(0);
 
-  // Validasi tombol: Form wajib isi DAN user harus coret TTD dulu baru tombol aktif
   const canSubmit = nama.trim().length > 0 && kelas.trim().length > 0 && sig.hasInk && phase === "form";
 
-  // MURNI LOGIKA ASLI LU: Hanya update state progress bar UI tanpa otak-atik canvas
   const tickProgress = useCallback(() => {
     const elapsed = Date.now() - recordStartRef.current;
     setRecordProgress(Math.min(1, elapsed / MAX_RECORD_MS));
@@ -41,7 +38,6 @@ export default function SignaturePage() {
     };
   }, [localVideoUrl]);
 
-  // Switcher tema murni di level UI saja sesuai request lu
   const handleThemeToggle = useCallback(() => {
     setPageDarkMode((prev) => !prev);
   }, []);
@@ -57,14 +53,12 @@ export default function SignaturePage() {
     try {
       const targetCanvas = sig.canvasRef?.current;
 
-      // Ambil data array koordinat coretan TTD dari hook bawaan lu
       const strokesData = sig.getStrokes();
 
       if (!targetCanvas) {
         throw new Error("Canvas utama tidak ditemukan.");
       }
 
-      // FIX MUTLAK: Sekarang argumen kedua sudah diisi dengan data strokes asli lu!
       const blob = await recordCanvasAsVideo(targetCanvas, strokesData, {
         fps: 24,
         maxDurationMs: MAX_RECORD_MS,
@@ -112,7 +106,7 @@ export default function SignaturePage() {
         }
       `}</style>
 
-      {/* Premium Theme Switcher Pill */}
+      {/*  Switcher Pill */}
       <div className="absolute top-6 right-6 z-50">
         <button
           type="button"
@@ -132,7 +126,7 @@ export default function SignaturePage() {
         </button>
       </div>
 
-      {/* Premium Glassmorphism UI Card */}
+      {/*  Glassmorphism UI Card */}
       <div
         className={`izer-premium-card w-full max-w-[440px] border rounded-[32px] pt-10 px-6 sm:px-8 pb-12 backdrop-blur-3xl transition-all duration-500 ease-out
         ${pageDarkMode ? "bg-[#161617]/90 border-zinc-800/80 shadow-[0_24px_50px_rgba(0,0,0,0.95)] text-white" : "bg-white/80 border-white/60 text-[#1D1D1F] shadow-[0_24px_50px_rgba(0,0,0,0.02)]"}`}
@@ -155,7 +149,7 @@ export default function SignaturePage() {
                 <FloatingInput label="Kelas" name="kelas" value={kelas} onChange={setKelas} dark={pageDarkMode} />
               </div>
 
-              {/* Latar belakang dinamis diisolasi pada level pembungkus UI ini saja */}
+              {/* Latar belakang dinamis diisolasi pada level pembungkus UI  */}
               <div
                 className={`w-full mb-4 pb-7 rounded-2xl border transition-all duration-300
                 ${pageDarkMode ? "bg-[#0A0A0C] border-zinc-800/80" : "bg-white border-gray-100"}`}

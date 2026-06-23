@@ -9,7 +9,6 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // FIX: Default tema disamakan dengan halaman utama (Light Mode / Putih Premium)
   const [darkMode, setDarkMode] = useState(false);
 
   const fetchLogs = async () => {

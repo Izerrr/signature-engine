@@ -11,6 +11,10 @@ export default function AdminPage() {
 
   const [darkMode, setDarkMode] = useState(false);
 
+  useEffect(() => {
+    console.log("Cek Token Admin:", import.meta.env.VITE_ADMIN_TOKEN);
+  }, []);
+
   const fetchLogs = async () => {
     setLoading(true);
     setError(null);
